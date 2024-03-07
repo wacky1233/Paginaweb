@@ -1,7 +1,10 @@
 # Paginaweb
 
-Fitxer principal de la pagina web.
+El fitxer `index.html` es el fitxer principal de la pagina web. On els usuaris accediran per primer cop.
 
+<details>
+<summary>index.html</summary>
+	
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -86,8 +89,14 @@ Fitxer principal de la pagina web.
 </body> 
 </html>
 ```
+</details>
+
+---
 
 Aquest fitxer s'utilitza per fer la conexio a la base de dades. (per defecte estan configurades les credencials test i test123$).
+
+<details>
+<summary>db.php</summary>
 
 ```php
 <?php
@@ -105,6 +114,9 @@ if ($conexion->connect_error) {
 ```
 
 Fitxer html de registre, ofereix inputs de nom,cognom,adreça i contrasenya per registrar usuaris.
+
+<details>
+<summary>register.html</summary>
 
 ```html
 <!DOCTYPE html>
@@ -161,13 +173,124 @@ Fitxer html de registre, ofereix inputs de nom,cognom,adreça i contrasenya per 
     </center>
     <script src="../JAVASCRIPT/back.js"></script>
 </body>
-
 </html>
 ```
+</details>
+---
 
+El fitxer `funciones.php` és utilitzat per definir les funcions de registrar l'usuari a la BD i verificar si l'usuari existeix en la BD. Aquestes funcions es faran servir quan l'usuari intenti iniciar sessió o crear un nou usuari. Es fan servir consultes parametritzades per evitar injeccions SQL.
 
+<details>
+<summary>funciones.php</summary>
 
+```php
+<?php
+include('db.php');
+
+function registrarUsuario($username, $password, $email) {
+    global $conexion;
+
+    if (existeUsuario($username)) {
+        return false;
+    }
+
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $conexion->prepare("INSERT INTO usuarios (username, password, email) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $username, $hashedPassword, $email);
+
+    if ($stmt->execute()) {
+        return true;
+    } else {
+        return false;
+    }
+
+    $stmt->close();
+}
+
+function existeUsuario($username) {
+    global $conexion;
+
+    $stmt = $conexion->prepare("SELECT COUNT(*) FROM usuarios WHERE username = ?");
+    $stmt->bind_param("s", $username);
+
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+
+    return $count > 0;
+
+    $stmt->close();
+}
+
+function iniciarSesion($username, $password) {
+    global $conexion;
+
+    $stmt = $conexion->prepare("SELECT id, username, password FROM usuarios WHERE username = ?");
+    $stmt->bind_param("s", $username);
+
+    $stmt->execute();
+    $stmt->bind_result($id, $storedUsername, $storedPassword);
+    $stmt->fetch();
+
+    $stmt->close();
+
+    if ($storedUsername && password_verify($password, $storedPassword)) {
+        session_start();
+
+        $_SESSION['user_id'] = $id;
+        $_SESSION['username'] = $storedUsername;
+
+        return true;
+    }
+
+    return false;
+}
+?>
 ```
+</details>
+---
+El fitxer 'register.php' s'utilitza per connectar-se a la BD i registrar l'usuari, email i contrasenya en la BD mitjançant la funció 'registrarUsuario()'. També s'encarrega de verificar si el formulari de registre s'ha enviat correctament.
+
+<details>
+<summary>register.php</summary>
+
+```php
+<?php
+include('../includes/db.php');
+include('../includes/funciones.php');
+
+$response = array(); // Inicializar la variable de respuesta
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Este bloque se ejecuta si el formulario ha sido enviado (método POST)
+    $username = $_POST['username'];
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+
+    // Llamar a la función para registrar el usuario
+    if (registrarUsuario($username, $password, $email)) {
+        $response['status'] = 'success';
+        $response['message'] = 'Registro exitoso.';
+        header("Location: /login/");
+        exit();
+    } else {
+        $message = "Error al iniciar sesión. Verifica tus credenciales.";
+        $response['status'] = 'error';
+        $response['message'] = 'Error al registrar el usuario. El nombre de usuario o email ya existe.';
+    }
+
+    // Devolver la respuesta como JSON
+    header('Content-Type: application/json');
+    echo json_encode($response);
+}
+?>
+```
+</details>
+---
+
+
+
 
 
 
